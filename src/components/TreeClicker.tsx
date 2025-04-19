@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 interface Particle {
   id: number;
@@ -8,16 +10,68 @@ interface Particle {
   speedY: number;
   rotation: number;
   size: number;
+  type: "tree" | "dollar";
 }
 
 const TreeClicker = () => {
   const [count, setCount] = useState(0);
+  const [multiplier, setMultiplier] = useState(1);
   const [particles, setParticles] = useState<Particle[]>([]);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const particleIdRef = useRef(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Создание аудио элемента для звука монет
+  useEffect(() => {
+    const audio = new Audio();
+    audio.src = "https://cdn.freesound.org/previews/275/275154_4486188-lq.mp3"; // URL звука монет
+    audio.preload = "auto";
+    audioRef.current = audio;
+    
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
+
+  // Генерация долларов каждые 2 секунды
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (buttonRef.current) {
+        const rect = buttonRef.current.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 1 + Math.random() * 2;
+        
+        setParticles(prev => [...prev, {
+          id: particleIdRef.current++,
+          x: centerX,
+          y: centerY,
+          speedX: Math.cos(angle) * speed,
+          speedY: Math.sin(angle) * speed,
+          rotation: Math.random() * 360,
+          size: 15 + Math.random() * 10,
+          type: "dollar"
+        }]);
+      }
+    }, 2000);
+    
+    return () => clearInterval(interval);
+  }, []);
 
   const handleClick = () => {
-    setCount(count + 1);
+    // Увеличиваем счетчик с учетом множителя
+    setCount(prev => prev + multiplier);
+    
+    // Воспроизводим звук монет
+    if (audioRef.current) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch(e => console.error("Error playing sound:", e));
+    }
     
     if (buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
@@ -39,10 +93,18 @@ const TreeClicker = () => {
           speedY: Math.sin(angle) * speed,
           rotation: Math.random() * 360,
           size: 20 + Math.random() * 15,
+          type: "tree"
         });
       }
       
       setParticles([...particles, ...newParticles]);
+    }
+  };
+
+  const upgradeTree = () => {
+    if (count >= 100) {
+      setCount(prev => prev - 100);
+      setMultiplier(prev => prev * 2);
     }
   };
 
@@ -72,16 +134,42 @@ const TreeClicker = () => {
   }, [particles]);
 
   return (
-    <div className="relative flex flex-col items-center justify-center w-full min-h-screen bg-white">
-      <div className="text-4xl font-bold mb-8 text-green-700">{count} Tree</div>
+    <div className="relative flex items-center justify-center w-full min-h-screen bg-white">
+      <div className="flex flex-col items-center">
+        <div className="text-4xl font-bold mb-8 text-green-700">{count} Tree</div>
+        
+        <button 
+          ref={buttonRef} 
+          className="w-40 h-40 bg-green-500 rounded-full flex items-center justify-center shadow-lg transition-transform duration-100 active:scale-95 hover:bg-green-600 focus:outline-none cursor-pointer"
+          onClick={handleClick}
+        >
+          <TreeIcon className="w-24 h-24 text-white" />
+        </button>
+        
+        <div className="mt-4 text-sm text-gray-600">
+          Текущий множитель: x{multiplier}
+        </div>
+      </div>
       
-      <button 
-        ref={buttonRef} 
-        className="w-40 h-40 bg-green-500 rounded-full flex items-center justify-center shadow-lg transition-transform duration-100 active:scale-95 hover:bg-green-600 focus:outline-none cursor-pointer"
-        onClick={handleClick}
-      >
-        <TreeIcon className="w-24 h-24 text-white" />
-      </button>
+      {/* Панель улучшений */}
+      <Card className="absolute right-10 top-1/2 transform -translate-y-1/2 p-5 w-64 flex flex-col items-center space-y-4">
+        <h2 className="text-xl font-bold text-green-700">Улучшения</h2>
+        
+        <div className="w-full p-4 border rounded-md bg-green-50">
+          <div className="flex justify-between mb-2">
+            <span className="font-medium">Улучшить дерево</span>
+            <span className="text-green-700">100 🌳</span>
+          </div>
+          <p className="text-sm text-gray-600 mb-3">Удвоить количество получаемых деревьев за клик</p>
+          <Button 
+            onClick={upgradeTree} 
+            disabled={count < 100}
+            className="w-full bg-green-500 hover:bg-green-600 disabled:bg-gray-300"
+          >
+            Купить x{multiplier * 2}
+          </Button>
+        </div>
+      </Card>
 
       {particles.map((particle) => (
         <div
@@ -93,13 +181,23 @@ const TreeClicker = () => {
             transform: `rotate(${particle.rotation}deg) translate(-50%, -50%)`,
           }}
         >
-          <TreeIcon 
-            className="text-green-500 opacity-70"
-            style={{
-              width: `${particle.size}px`,
-              height: `${particle.size}px`,
-            }}
-          />
+          {particle.type === "tree" ? (
+            <TreeIcon 
+              className="text-green-500 opacity-70"
+              style={{
+                width: `${particle.size}px`,
+                height: `${particle.size}px`,
+              }}
+            />
+          ) : (
+            <DollarIcon 
+              className="text-green-600 opacity-80"
+              style={{
+                width: `${particle.size}px`,
+                height: `${particle.size}px`,
+              }}
+            />
+          )}
         </div>
       ))}
     </div>
@@ -127,6 +225,25 @@ const TreeIcon = ({ className = "", ...props }: React.SVGProps<SVGSVGElement>) =
         fill="currentColor" stroke="white" />
       <path d="M12 15a2 2 0 0 0-2 2v1a2 2 0 0 1-2 2H7a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2 2 2 0 0 1-2-2h-2"
         fill="currentColor" stroke="white" />
+    </svg>
+  );
+};
+
+const DollarIcon = ({ className = "", ...props }: React.SVGProps<SVGSVGElement>) => {
+  return (
+    <svg 
+      xmlns="http://www.w3.org/2000/svg" 
+      viewBox="0 0 24 24" 
+      fill="currentColor" 
+      stroke="currentColor" 
+      strokeWidth="0.5" 
+      strokeLinecap="round" 
+      strokeLinejoin="round" 
+      className={className}
+      {...props}
+    >
+      <circle cx="12" cy="12" r="10" fill="#e8f5e9" stroke="#4caf50" />
+      <path d="M12 6v12M15 9H9.5a2.5 2.5 0 0 0 0 5h5a2.5 2.5 0 0 1 0 5H8" fill="none" stroke="#2e7d32" strokeWidth="1.5" />
     </svg>
   );
 };
