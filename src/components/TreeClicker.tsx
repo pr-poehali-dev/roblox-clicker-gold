@@ -17,8 +17,7 @@ const TreeClicker = () => {
   const [count, setCount] = useState(0);
   const [multiplier, setMultiplier] = useState(1);
   const [particles, setParticles] = useState<Particle[]>([]);
-  const mainButtonRef = useRef<HTMLButtonElement>(null);
-  const topButtonRef = useRef<HTMLButtonElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const particleIdRef = useRef(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -40,8 +39,8 @@ const TreeClicker = () => {
   // Генерация долларов каждые 2 секунды
   useEffect(() => {
     const interval = setInterval(() => {
-      if (mainButtonRef.current) {
-        const rect = mainButtonRef.current.getBoundingClientRect();
+      if (buttonRef.current) {
+        const rect = buttonRef.current.getBoundingClientRect();
         const centerX = rect.left + rect.width / 2;
         const centerY = rect.top + rect.height / 2;
         
@@ -64,30 +63,22 @@ const TreeClicker = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Обработчик для основного дерева
-  const handleMainClick = () => {
-    // Увеличиваем счетчик с учетом множителя
-    setCount(prev => prev + multiplier);
-    
-    // Воспроизводим звук монет
-    playSound();
-    
-    createParticles(mainButtonRef);
-  };
-
-  // Обработчик для верхнего дерева
-  const handleTopClick = () => {
+  // Обработчик клика по дереву
+  const handleClick = () => {
     // Увеличиваем счетчик на 1 с учетом множителя
     setCount(prev => prev + 1 * multiplier);
     
     // Воспроизводим звук монет
-    playSound();
+    if (audioRef.current) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch(e => console.error("Error playing sound:", e));
+    }
     
-    createParticles(topButtonRef);
+    createParticles();
   };
 
   // Функция создания частиц
-  const createParticles = (buttonRef: React.RefObject<HTMLButtonElement>) => {
+  const createParticles = () => {
     if (buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
       const centerX = rect.left + rect.width / 2;
@@ -113,14 +104,6 @@ const TreeClicker = () => {
       }
       
       setParticles(prev => [...prev, ...newParticles]);
-    }
-  };
-
-  // Функция воспроизведения звука
-  const playSound = () => {
-    if (audioRef.current) {
-      audioRef.current.currentTime = 0;
-      audioRef.current.play().catch(e => console.error("Error playing sound:", e));
     }
   };
 
@@ -163,27 +146,15 @@ const TreeClicker = () => {
       {/* Счетчик деревьев */}
       <div className="text-4xl font-bold mb-8 text-green-700">{count} Tree</div>
       
-      {/* Верхнее дерево */}
+      {/* Дерево */}
       <div className="mb-12">
-        <div className="text-center text-lg text-green-700 mb-2">Простое дерево (+1 Tree)</div>
+        <div className="text-center text-lg text-green-700 mb-2">Дерево (+{multiplier} Tree)</div>
         <button 
-          ref={topButtonRef} 
-          className="w-24 h-24 bg-green-500 rounded-full flex items-center justify-center shadow-lg transition-transform duration-100 active:scale-95 hover:bg-green-600 focus:outline-none cursor-pointer"
-          onClick={handleTopClick}
+          ref={buttonRef} 
+          className="w-32 h-32 bg-green-500 rounded-full flex items-center justify-center shadow-lg transition-transform duration-100 active:scale-95 hover:bg-green-600 focus:outline-none cursor-pointer"
+          onClick={handleClick}
         >
-          <TreeIcon className="w-14 h-14 text-white" />
-        </button>
-      </div>
-      
-      {/* Главное дерево */}
-      <div className="flex flex-col items-center">
-        <div className="text-center text-lg text-green-700 mb-2">Большое дерево (+{multiplier} Tree)</div>
-        <button 
-          ref={mainButtonRef} 
-          className="w-40 h-40 bg-green-500 rounded-full flex items-center justify-center shadow-lg transition-transform duration-100 active:scale-95 hover:bg-green-600 focus:outline-none cursor-pointer"
-          onClick={handleMainClick}
-        >
-          <TreeIcon className="w-24 h-24 text-white" />
+          <TreeIcon className="w-20 h-20 text-white" />
         </button>
         
         <div className="mt-4 text-sm text-gray-600">
@@ -191,26 +162,22 @@ const TreeClicker = () => {
         </div>
       </div>
       
-      {/* Панель улучшений */}
-      <Card className="absolute right-10 top-1/2 transform -translate-y-1/2 p-5 w-64 flex flex-col items-center space-y-4">
-        <h2 className="text-xl font-bold text-green-700">Улучшения</h2>
-        
-        <div className="w-full p-4 border rounded-md bg-green-50">
-          <div className="flex justify-between mb-2">
-            <span className="font-medium">Улучшить деревья</span>
-            <span className="text-green-700">100 🌳</span>
-          </div>
-          <p className="text-sm text-gray-600 mb-3">Удвоить количество получаемых деревьев за клик</p>
-          <Button 
-            onClick={upgradeTree} 
-            disabled={count < 100}
-            className="w-full bg-green-500 hover:bg-green-600 disabled:bg-gray-300"
-          >
-            Купить x{multiplier * 2}
-          </Button>
+      {/* Улучшение дерева (вместо нижнего дерева) */}
+      <div className="mt-8 w-64 p-4 border rounded-md bg-green-50 shadow-md">
+        <div className="flex justify-between mb-2">
+          <span className="font-medium">Улучшить дерево</span>
+          <span className="text-green-700">100 🌳</span>
         </div>
-      </Card>
-
+        <p className="text-sm text-gray-600 mb-3">Удвоить количество получаемых деревьев за клик</p>
+        <Button 
+          onClick={upgradeTree} 
+          disabled={count < 100}
+          className="w-full bg-green-500 hover:bg-green-600 disabled:bg-gray-300"
+        >
+          Купить x{multiplier * 2}
+        </Button>
+      </div>
+      
       {/* Частицы */}
       {particles.map((particle) => (
         <div
