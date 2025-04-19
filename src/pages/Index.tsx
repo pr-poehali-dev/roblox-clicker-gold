@@ -1,7 +1,7 @@
-import RobloxClicker from "@/components/RobloxClicker";
+import TreeClicker from "@/components/TreeClicker";
 
 const Index = () => {
-  return <RobloxClicker />;
+  return <TreeClicker />;
 };
 
 export default Index;
